@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Packet Visualization</title>
+		<style>
+			body { margin: 0; }
+			canvas { display: block; }
+		</style>
+		<link rel="stylesheet" type="text/css" href="css/visualization.css">
+	</head>
+	<body>
+		<script src="js/three.js"></script>
+		<!--<script src="js/visualization.js"></script>
+		<div id="importExportButton"><input type="file" id="importFile">Load</div>-->
+		<div id="data">
+		{
+   "No.": 1,
+   "Time": 0,
+   "Source": "192.168.2.101",
+   "Destination": "211.137.137.11",
+   "Protocol": "UDP",
+   "Length": 76
+ },
+ {
+   "No.": 2,
+   "Time": 0.000003,
+   "Source": "192.168.2.101",
+   "Destination": "211.137.137.11",
+   "Protocol": "UDP",
+   "Length": 76
+ },
+ {
+   "No.": 3,
+   "Time": 0.001005,
+   "Source": "211.137.137.11",
+   "Destination": "89.128.123.34",
+   "Protocol": "UDP",
+   "Length": 80
+ }
+		</div>
+		<script>
+		
+			//Adds the 3 aspects vital to displaying anything: scene, camera and renderer
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+			
+			
+			var geometry = new THREE.SphereBufferGeometry(0,32,32);
+			var material = new THREE.MeshBasicMaterial({color: 0xffff00});
+			var sphere1 = new THREE.Mesh( geometry, material );
+			var sphere2 = new THREE.Mesh( geometry, material );
+			var sphere3 = new THREE.Mesh( geometry, material );
+			scene.add(sphere1);
+			scene.add(sphere2);
+			scene.add(sphere3);
+			sphere1.position.set(0,5,-5);
+			sphere2.position.set(2,0,0);
+			sphere3.position.set(-3,-2,2);
+			camera.position.z = 10;
+						
+			//Animation or rendering loop
+			function animate() {
+				requestAnimationFrame( animate );			//Frame depends on state of browser, saves resources
+				//sphere.rotation.x += 0.05;					//These rotations occur every frame			 	
+				//sphere.rotation.y += 0.05;
+				renderer.render( scene, camera );
+			}
+			animate();
+			
+		</script>
+	</body>
+</html>
