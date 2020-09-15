@@ -1012,7 +1012,7 @@
 				var radius = 8;
 				var sphere, label, root, x, y;
 				var sphereGeometry = new THREE.SphereBufferGeometry(0,32,32);
-				var sphereMaterial = new THREE.MeshBasicMaterial({color: 0xffff00});
+				var sphereMaterial = new THREE.MeshLambertMaterial( { color: 0x2194CE } );
 				var labelDiv, sphereLabel;
 				var iter = uniqueAddress.keys();  
 				
@@ -1041,6 +1041,10 @@
 					//Keep track of location in 3D space in order to draw lines from sphere to sphere
 					uniqueAddress.set(address, new THREE.Vector3(x, y, 0));  
 				}
+				//Creats and adds a white spotlight behind the camera
+					var spotLight = new THREE.SpotLight(0xffffff);
+					spotLight.position.set(0, 0, 300);
+					scene.add(spotLight);
 				
 				//Creates and adds WebGLRenderer 
 				renderer = new THREE.WebGLRenderer();
