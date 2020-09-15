@@ -831,19 +831,43 @@
  }
 ]
 </div>
+		<div id="forwardbackbuttons">
+			<button type="button" id="backwardButton">Backwards</button>
+			<button type="button" id="forwardButton">Forwards</button>	
+		</div>
 		<script type="module">
 			import {TrackballControls} from 'https://threejsfundamentals.org/threejs/resources/threejs/r119/examples/jsm/controls/TrackballControls.js';
+			var globalIndex = -1; 
+			
+			/**
+				Event Listeners for forward/backwards buttons
+			**/
+			document.addEventListener('DOMContentLoaded', function() {	
+				document.getElementById("backwardButton").addEventListener("click", function(){
+					if(globalIndex > 0){
+						globalIndex--;
+						}
+					drawLine(globalIndex);
+					//todo: remove last line!
 
+				})
+				document.getElementById("forwardButton").addEventListener("click", function(){
+					if(globalIndex < uniqueAddress.size){
+						globalIndex++;
+					}
+					drawLine(globalIndex);
+				})
+			})
+			
 			//Parse through the provided JSON (currenly residing in HTML. TODO: load from elsewhere)
 			var  packetsJSON = JSON.parse(document.getElementById("data").innerHTML);
 			
 			//Create set of unique locations. Each will be represented by a sphere
-			var uniqueLocations = new Set();
+			var uniqueAddress = new Map();
 			for(var i = 0; i < Object.keys(packetsJSON).length; i++){
-				uniqueLocations.add(packetsJSON[i].Source);
-				uniqueLocations.add(packetsJSON[i].Destination);
+				uniqueAddress.set(packetsJSON[i].Source, null);
+				uniqueAddress.set(packetsJSON[i].Destination, null);
 			}
-			var locationArray = Array.from(uniqueLocations);
 		
 			//Adds the 3 aspects vital to displaying anything: scene, camera and renderer
 			//Also adds trackball controls
@@ -858,7 +882,7 @@
 			controls.panSpeed = 1.0;
 			controls.keys = [ 65, 83, 68 ];
 			
-			//Adds spheres representing sources/destinations to the scene. TODO: needs labels with IP addresses
+			//Adds spheres representing sources/destinations to the scene
 			var x0 = 0, y0 = 0;
 			var radius = 8;
 			var sphere, label, root;
@@ -867,10 +891,11 @@
 			var labelGeometry = new THREE.PlaneBufferGeometry(1, 1);
 			var labelMaterial;
 			var canvas, texture;
-			
-			for (var i = 0; i < locationArray.length; i++){
+			var iter = uniqueAddress.keys();  
+			for (var i = 0; i < uniqueAddress.size; i++){
+				var address = iter.next().value;
 				sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
-				canvas = makeLabelCanvas(50, locationArray[i]);;
+				canvas = makeLabelCanvas(50, address);;
 				texture = new THREE.CanvasTexture(canvas);
 			    texture.minFilter = THREE.LinearFilter;
 			    texture.wrapS = THREE.ClampToEdgeWrapping;
@@ -882,8 +907,10 @@
 				  });
 				label = new THREE.Mesh(labelGeometry, labelMaterial);
 				root = new THREE.Object3D();
-				var x = x0 + radius * Math.cos(2 * Math.PI * i/uniqueLocations.size); //This makes all spheres equidistant in a circle
-				var y = y0 + radius * Math.sin(2 * Math.PI * i/uniqueLocations.size);
+				
+				//These calculations ensure the spheres lie equidistant in a circle of the given radius
+				var x = x0 + radius * Math.cos(2 * Math.PI * i/uniqueAddress.size); 
+				var y = y0 + radius * Math.sin(2 * Math.PI * i/uniqueAddress.size); 
 				
 				//Adding sphere and label to root element
 				root.add(sphere);
@@ -892,26 +919,32 @@
 				scene.add(root);
 				root.position.set(x,y,0);
 				
-				
+				//Keep track of location in 3D space in order to draw lines from sphere to sphere
+				uniqueAddress.set(address, new THREE.Vector3(x, y, 0));  
 			}
+					
 			camera.position.z = 20;
 			
+			/**
+				Creates a label with the given font size and name.
+				Adapted from https://threejsfundamentals.org/threejs/lessons/threejs-canvas-textures.html
+			**/
 			function makeLabelCanvas(size, name) {
 			  const borderSize = 2;
 			  const ctx = document.createElement('canvas').getContext('2d');
 			  const font =  `${size}px bold sans-serif`;
 			  ctx.font = font;
-			  // measure how long the name will be
+			  
+			  // Measure how long the name will be
 			  const doubleBorderSize = borderSize * 2;
 			  const width =  + doubleBorderSize;
 			  const height = size + doubleBorderSize;
 			  ctx.canvas.width = width;
 			  ctx.canvas.height = height;
 			 
-			  // need to set font again after resizing canvas
+			  // Need to set font again after resizing canvas
 			  ctx.font = font;
-			  ctx.textBaseline = 'top';
-			 
+			  ctx.textBaseline = 'top';			 
 			  ctx.fillStyle = 'yellow';
 			  ctx.fillRect(0, 0, width, height);
 			  ctx.fillStyle = 'black';
@@ -920,12 +953,31 @@
 			  return ctx.canvas;
 			}	
 			
-			//Animation/rendering loop
+			/**
+				Animation/rendering loop
+			**/
 			function animate() {
 				requestAnimationFrame( animate );
 				controls.update();
 				renderer.render( scene, camera );
 			}
+			
+			/**
+				Draws a line from a source point to a destination point.
+				This function requires the index of the packetsJSON to be drawn
+				The coordinates of the points are stored in the uniqueAddress map
+			**/ 
+			function drawLine(index) {
+				console.log("Line drawn for packet " + index + " from souce " + packetsJSON[index].Source + " to destination " + packetsJSON[index].Destination);
+				var material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+				var points = [];
+				points.push(uniqueAddress.get(packetsJSON[index].Source));
+				points.push(uniqueAddress.get(packetsJSON[index].Destination));
+				var geometry = new THREE.BufferGeometry().setFromPoints( points );
+				var line = new THREE.Line( geometry, material );
+				scene.add( line );
+			}
+			
 			animate();			
 			
 		</script>
