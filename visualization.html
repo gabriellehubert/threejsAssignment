@@ -834,10 +834,133 @@
 		<div id="forwardbackbuttons">
 			<button type="button" id="backwardButton">Backwards</button>
 			<button type="button" id="forwardButton">Forwards</button>	
+			<button type="button" id="skipButton">Skip to End</button>
 		</div>
 		<script type="module">
+		    /** Module from https://github.com/mrdoob/three.js/blob/master/examples/jsm/renderers/CSS2DRenderer.js
+			Copy/pasted/modified here to avoid CORS issues & to avoid setting up a web server **/
+				var CSS2DObject = function ( element ) {
+				THREE.Object3D.call( this );
+				this.element = element || document.createElement( 'div' );
+				this.element.style.position = 'absolute';
+				this.addEventListener( 'removed', function () {
+					this.traverse( function ( object ) {
+						if ( object.element instanceof Element && object.element.parentNode !== null ) {
+							object.element.parentNode.removeChild( object.element );
+						}
+					} );
+				} );
+			};
+
+			CSS2DObject.prototype = Object.assign( Object.create( THREE.Object3D.prototype ), {
+				constructor: CSS2DObject,
+				copy: function ( source, recursive ) {
+					THREE.Object3D.prototype.copy.call( this, source, recursive );
+					this.element = source.element.cloneNode( true );
+					return this;
+				}
+			} );
+
+			var CSS2DRenderer = function () {
+				var _this = this;
+				var _width, _height;
+				var _widthHalf, _heightHalf;
+				var vector = new THREE.Vector3();
+				var viewMatrix = new THREE.Matrix4();
+				var viewProjectionMatrix = new THREE.Matrix4();
+				var cache = {
+					objects: new WeakMap()
+				};
+				var domElement = document.createElement( 'div' );
+				domElement.style.overflow = 'hidden';
+				this.domElement = domElement;
+				this.getSize = function () {
+					return {
+						width: _width,
+						height: _height
+					};
+
+				};
+				this.setSize = function ( width, height ) {
+					_width = width;
+					_height = height;
+					_widthHalf = _width / 2;
+					_heightHalf = _height / 2;
+					domElement.style.width = width + 'px';
+					domElement.style.height = height + 'px';
+
+				};
+				var renderObject = function ( object, scene, camera ) {
+					if ( object instanceof CSS2DObject ) {
+						object.onBeforeRender( _this, scene, camera );
+						vector.setFromMatrixPosition( object.matrixWorld );
+						vector.applyMatrix4( viewProjectionMatrix );
+						var element = object.element;
+						var style = 'translate(-50%,-50%) translate(' + ( vector.x * _widthHalf + _widthHalf ) + 'px,' + ( - vector.y * _heightHalf + _heightHalf ) + 'px)';
+						element.style.WebkitTransform = style;
+						element.style.MozTransform = style;
+						element.style.oTransform = style;
+						element.style.transform = style;
+						element.style.display = ( object.visible && vector.z >= - 1 && vector.z <= 1 ) ? '' : 'none';
+						var objectData = {
+							distanceToCameraSquared: getDistanceToSquared( camera, object )
+						};
+						cache.objects.set( object, objectData );
+						if ( element.parentNode !== domElement ) {
+							domElement.appendChild( element );
+						}
+						object.onAfterRender( _this, scene, camera );
+					}
+					for ( var i = 0, l = object.children.length; i < l; i ++ ) {
+						renderObject( object.children[ i ], scene, camera );
+					}
+				};
+
+				var getDistanceToSquared = function () {
+					var a = new THREE.Vector3();
+					var b = new THREE.Vector3();
+					return function ( object1, object2 ) {
+						a.setFromMatrixPosition( object1.matrixWorld );
+						b.setFromMatrixPosition( object2.matrixWorld );
+						return a.distanceToSquared( b );
+					};
+				}();
+
+				var filterAndFlatten = function ( scene ) {
+					var result = [];
+					scene.traverse( function ( object ) {
+						if ( object instanceof CSS2DObject ) result.push( object );
+					} );
+					return result;
+				};
+
+				var zOrder = function ( scene ) {
+					var sorted = filterAndFlatten( scene ).sort( function ( a, b ) {
+						var distanceA = cache.objects.get( a ).distanceToCameraSquared;
+						var distanceB = cache.objects.get( b ).distanceToCameraSquared;
+						return distanceA - distanceB;
+					} );
+					var zMax = sorted.length;
+					for ( var i = 0, l = sorted.length; i < l; i ++ ) {
+						sorted[ i ].element.style.zIndex = zMax - i;
+					}
+				};
+				this.render = function ( scene, camera ) {
+					if ( scene.autoUpdate === true ) scene.updateMatrixWorld();
+					if ( camera.parent === null ) camera.updateMatrixWorld();
+					viewMatrix.copy( camera.matrixWorldInverse );
+					viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, viewMatrix );
+					renderObject( scene, scene, camera );
+					zOrder( scene );
+				};
+			};
+			export { CSS2DObject, CSS2DRenderer };
+			
+			/****************************************************************************************************************/
+			
 			import {TrackballControls} from 'https://threejsfundamentals.org/threejs/resources/threejs/r119/examples/jsm/controls/TrackballControls.js';
 			var globalIndex = -1; 
+			var controls, renderer, labelRenderer, scene, camera, packetsJSON, uniqueAddress;
 			
 			/**
 				Event Listeners for forward/backwards buttons
@@ -859,109 +982,97 @@
 					}
 					
 				})
+				document.getElementById("skipButton").addEventListener("click", function(){
+					drawAllLines();
+					globalIndex = 0;					
+				})
 			})
 			
-			//Parse through the provided JSON (currenly residing in HTML. TODO: load from elsewhere)
-			var  packetsJSON = JSON.parse(document.getElementById("data").innerHTML);
-			
-			//Create set of unique locations. Each will be represented by a sphere
-			var uniqueAddress = new Map();
-			for(var i = 0; i < Object.keys(packetsJSON).length; i++){
-				uniqueAddress.set(packetsJSON[i].Source, null);
-				uniqueAddress.set(packetsJSON[i].Destination, null);
-			}
-		
-			//Adds the 3 aspects vital to displaying anything: scene, camera and renderer
-			//Also adds trackball controls
-			var scene = new THREE.Scene();
-			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-			var renderer = new THREE.WebGLRenderer();
-			renderer.setSize( window.innerWidth, window.innerHeight);
-			document.body.appendChild( renderer.domElement );
-			const controls = new TrackballControls(camera, document.getElementsByTagName("canvas")[0]);
-			controls.rotateSpeed = 1.5;
-			controls.zoomSpeed = 1.8;
-			controls.panSpeed = 1.0;
-			controls.keys = [ 65, 83, 68 ];
-			
-			//Adds spheres representing sources/destinations to the scene
-			var x0 = 0, y0 = 0;
-			var radius = 8;
-			var sphere, label, root;
-			var sphereGeometry = new THREE.SphereBufferGeometry(0,32,32);
-			var sphereMaterial = new THREE.MeshBasicMaterial({color: 0xffff00});
-			var labelGeometry = new THREE.PlaneBufferGeometry(1, 1);
-			var labelMaterial;
-			var canvas, texture;
-			var iter = uniqueAddress.keys();  
-			for (var i = 0; i < uniqueAddress.size; i++){
-				var address = iter.next().value;
-				sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
-				canvas = makeLabelCanvas(50, address);;
-				texture = new THREE.CanvasTexture(canvas);
-			    texture.minFilter = THREE.LinearFilter;
-			    texture.wrapS = THREE.ClampToEdgeWrapping;
-			    texture.wrapT = THREE.ClampToEdgeWrapping;	
-				labelMaterial = new THREE.MeshBasicMaterial({
-					map: texture,
-					side: THREE.DoubleSide,
-					transparent: true,
-				  });
-				label = new THREE.Mesh(labelGeometry, labelMaterial);
-				root = new THREE.Object3D();
-				
-				//These calculations ensure the spheres lie equidistant in a circle of the given radius
-				var x = x0 + radius * Math.cos(2 * Math.PI * i/uniqueAddress.size); 
-				var y = y0 + radius * Math.sin(2 * Math.PI * i/uniqueAddress.size); 
-				
-				//Adding sphere and label to root element
-				root.add(sphere);
-				root.add(label);
-				label.position.set(0,0,1);		//Need to place label further up z-axis relative to root, so it is not hidden by sphere
-				scene.add(root);
-				root.position.set(x,y,0);
-				
-				//Keep track of location in 3D space in order to draw lines from sphere to sphere
-				uniqueAddress.set(address, new THREE.Vector3(x, y, 0));  
-			}
-					
-			camera.position.z = 20;
-			
 			/**
-				Creates a label with the given font size and name.
-				Adapted from https://threejsfundamentals.org/threejs/lessons/threejs-canvas-textures.html
-			**/
-			function makeLabelCanvas(size, name) {
-			  const borderSize = 2;
-			  const ctx = document.createElement('canvas').getContext('2d');
-			  const font =  `${size}px bold sans-serif`;
-			  ctx.font = font;
-			  
-			  // Measure how long the name will be
-			  const doubleBorderSize = borderSize * 2;
-			  const width =  + doubleBorderSize;
-			  const height = size + doubleBorderSize;
-			  ctx.canvas.width = width;
-			  ctx.canvas.height = height;
-			 
-			  // Need to set font again after resizing canvas
-			  ctx.font = font;
-			  ctx.textBaseline = 'top';			 
-			  ctx.fillStyle = 'yellow';
-			  ctx.fillRect(0, 0, width, height);
-			  ctx.fillStyle = 'black';
-			  ctx.fillText(name, borderSize, borderSize);
-			 
-			  return ctx.canvas;
-			}	
+				Initializes camera, scene, renderers, spheres and labels.
+			*/
+			function init(){
+				//Parse through the provided JSON (currenly residing in HTML. TODO: load from elsewhere)
+				packetsJSON = JSON.parse(document.getElementById("data").innerHTML);
+				
+				//Create set of unique locations. Each will be represented by a sphere
+				uniqueAddress = new Map();
+				for(var i = 0; i < Object.keys(packetsJSON).length; i++){
+					uniqueAddress.set(packetsJSON[i].Source, null);
+					uniqueAddress.set(packetsJSON[i].Destination, null);
+				}
+			
+				//Adds the 3 aspects vital to displaying anything: scene, camera and renderer
+				scene = new THREE.Scene();
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+				scene.background = new THREE.Color("#9ba9b3");
+				
+				//Adds spheres representing sources/destinations to the scene
+				var x0 = 0, y0 = 0;
+				var radius = 8;
+				var sphere, label, root, x, y;
+				var sphereGeometry = new THREE.SphereBufferGeometry(0,32,32);
+				var sphereMaterial = new THREE.MeshBasicMaterial({color: 0xffff00});
+				var labelDiv, sphereLabel;
+				var iter = uniqueAddress.keys();  
+				
+				for (var i = 0; i < uniqueAddress.size; i++){
+					var address = iter.next().value;
+					sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
+
+					//These calculations ensure the spheres lie equidistant in a circle of the given radius
+					x = x0 + radius * Math.cos(2 * Math.PI * i/uniqueAddress.size); 
+					y = y0 + radius * Math.sin(2 * Math.PI * i/uniqueAddress.size); 
+					
+					//Create label for the sphere with its corresponding IP address
+					labelDiv = document.createElement("div");
+					labelDiv.className = 'label';
+					labelDiv.textContent = address;
+					labelDiv.style.marginTop = '-1em';
+					labelDiv.style.color = 'white';
+					sphereLabel = new CSS2DObject(labelDiv);
+					
+					//Position sphere and label, and place them in scene
+					sphere.add(sphereLabel);
+					sphereLabel.position.set(0.5, 0, 0);
+					scene.add(sphere);
+					sphere.position.set(x,y,0);
+					
+					//Keep track of location in 3D space in order to draw lines from sphere to sphere
+					uniqueAddress.set(address, new THREE.Vector3(x, y, 0));  
+				}
+				
+				//Creates and adds WebGLRenderer 
+				renderer = new THREE.WebGLRenderer();
+				renderer.setSize( window.innerWidth, window.innerHeight);
+				document.body.appendChild( renderer.domElement );
+				
+				//Creates and adds label renderer
+				labelRenderer = new CSS2DRenderer();
+				labelRenderer.setSize( window.innerWidth, window.innerHeight );
+				labelRenderer.domElement.style.position = 'absolute';
+				labelRenderer.domElement.style.top = "20px";      //Height of top buttons. Otherwise, the renderer "covers" the buttons and makes them unclickable
+				document.getElementsByTagName("canvas")[0].parentElement.appendChild(labelRenderer.domElement );
+				
+				//Add camera controls
+				controls = new TrackballControls(camera, document.getElementsByTagName("canvas")[0].parentElement);
+				controls.rotateSpeed = 1.5;
+				controls.zoomSpeed = 1.8;
+				controls.panSpeed = 1.0;
+				controls.keys = [ 65, 83, 68 ];	
+				camera.position.z = 20;
+			}
 			
 			/**
 				Animation/rendering loop
 			**/
 			function animate() {
-				requestAnimationFrame( animate );
+				requestAnimationFrame(animate);
 				controls.update();
-				renderer.render( scene, camera );
+				labelRenderer.render( scene, camera);
+				renderer.render(scene, camera);
+				
+				
 			}
 			
 			/**
@@ -1002,6 +1113,19 @@
 				scene.add(line);
 			}
 			
+			/**
+				Draws all lines from index 0
+			**/
+			function drawAllLines()
+			{
+				console.log("here");
+				for(var i = 0; i < packetsJSON.length; i++){
+					
+					drawLine(i);
+				}
+			}	
+			
+			init();
 			animate();			
 			
 		</script>
