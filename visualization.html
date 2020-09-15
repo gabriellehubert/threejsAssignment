@@ -11,8 +11,6 @@
 	</head>
 	<body>
 		<script src="js/three.js"></script>
-		<!--<script src="js/visualization.js"></script>
-		<div id="importExportButton"><input type="file" id="importFile">Load</div>-->
 		<div id="data" style="display: none;">
 [
  {
@@ -833,51 +831,102 @@
  }
 ]
 </div>
-		<script>
+		<script type="module">
+			import {TrackballControls} from 'https://threejsfundamentals.org/threejs/resources/threejs/r119/examples/jsm/controls/TrackballControls.js';
+
 			//Parse through the provided JSON (currenly residing in HTML. TODO: load from elsewhere)
 			var  packetsJSON = JSON.parse(document.getElementById("data").innerHTML);
 			
 			//Create set of unique locations. Each will be represented by a sphere
 			var uniqueLocations = new Set();
-			for(var i = 0; i < Object.keys(packetsJSON).length; i++)
-			{
+			for(var i = 0; i < Object.keys(packetsJSON).length; i++){
 				uniqueLocations.add(packetsJSON[i].Source);
 				uniqueLocations.add(packetsJSON[i].Destination);
 			}
-			
+			var locationArray = Array.from(uniqueLocations);
 		
 			//Adds the 3 aspects vital to displaying anything: scene, camera and renderer
+			//Also adds trackball controls
 			var scene = new THREE.Scene();
 			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 			var renderer = new THREE.WebGLRenderer();
-			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setSize( window.innerWidth, window.innerHeight);
 			document.body.appendChild( renderer.domElement );
+			const controls = new TrackballControls(camera, document.getElementsByTagName("canvas")[0]);
+			controls.rotateSpeed = 1.5;
+			controls.zoomSpeed = 1.8;
+			controls.panSpeed = 1.0;
+			controls.keys = [ 65, 83, 68 ];
 			
-
 			//Adds spheres representing sources/destinations to the scene. TODO: needs labels with IP addresses
 			var x0 = 0, y0 = 0;
-			var radius = 6;
-			var sphere;
-			var geometry = new THREE.SphereBufferGeometry(0,32,32);
-			var material = new THREE.MeshBasicMaterial({color: 0xffff00});
+			var radius = 8;
+			var sphere, label, root;
+			var sphereGeometry = new THREE.SphereBufferGeometry(0,32,32);
+			var sphereMaterial = new THREE.MeshBasicMaterial({color: 0xffff00});
+			var labelGeometry = new THREE.PlaneBufferGeometry(1, 1);
+			var labelMaterial;
+			var canvas, texture;
 			
-			for (var i = 0; i < uniqueLocations.size; i++){
-				sphere = new THREE.Mesh( geometry, material );
-				scene.add(sphere);
+			for (var i = 0; i < locationArray.length; i++){
+				sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
+				canvas = makeLabelCanvas(50, locationArray[i]);;
+				texture = new THREE.CanvasTexture(canvas);
+			    texture.minFilter = THREE.LinearFilter;
+			    texture.wrapS = THREE.ClampToEdgeWrapping;
+			    texture.wrapT = THREE.ClampToEdgeWrapping;	
+				labelMaterial = new THREE.MeshBasicMaterial({
+					map: texture,
+					side: THREE.DoubleSide,
+					transparent: true,
+				  });
+				label = new THREE.Mesh(labelGeometry, labelMaterial);
+				root = new THREE.Object3D();
 				var x = x0 + radius * Math.cos(2 * Math.PI * i/uniqueLocations.size); //This makes all spheres equidistant in a circle
 				var y = y0 + radius * Math.sin(2 * Math.PI * i/uniqueLocations.size);
-				sphere.position.set(x,y,0);
+				
+				//Adding sphere and label to root element
+				root.add(sphere);
+				root.add(label);
+				label.position.set(0,0,1);		//Need to place label further up z-axis relative to root, so it is not hidden by sphere
+				scene.add(root);
+				root.position.set(x,y,0);
+				
+				
 			}
-			camera.position.z = 10;
-						
+			camera.position.z = 20;
+			
+			function makeLabelCanvas(size, name) {
+			  const borderSize = 2;
+			  const ctx = document.createElement('canvas').getContext('2d');
+			  const font =  `${size}px bold sans-serif`;
+			  ctx.font = font;
+			  // measure how long the name will be
+			  const doubleBorderSize = borderSize * 2;
+			  const width =  + doubleBorderSize;
+			  const height = size + doubleBorderSize;
+			  ctx.canvas.width = width;
+			  ctx.canvas.height = height;
+			 
+			  // need to set font again after resizing canvas
+			  ctx.font = font;
+			  ctx.textBaseline = 'top';
+			 
+			  ctx.fillStyle = 'yellow';
+			  ctx.fillRect(0, 0, width, height);
+			  ctx.fillStyle = 'black';
+			  ctx.fillText(name, borderSize, borderSize);
+			 
+			  return ctx.canvas;
+			}	
+			
 			//Animation/rendering loop
 			function animate() {
-				requestAnimationFrame( animate );			//Frame depends on state of browser, saves resources
-				//sphere.rotation.x += 0.05;				//These rotations occur every frame			 	
-				//sphere.rotation.y += 0.05;
+				requestAnimationFrame( animate );
+				controls.update();
 				renderer.render( scene, camera );
 			}
-			animate();
+			animate();			
 			
 		</script>
 	</body>
