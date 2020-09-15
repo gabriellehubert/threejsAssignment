@@ -846,16 +846,18 @@
 				document.getElementById("backwardButton").addEventListener("click", function(){
 					if(globalIndex > 0){
 						globalIndex--;
+						drawLine(globalIndex);
 						}
-					drawLine(globalIndex);
+					
 					//todo: remove last line!
 
 				})
 				document.getElementById("forwardButton").addEventListener("click", function(){
-					if(globalIndex < uniqueAddress.size){
+					if(globalIndex < packetsJSON.length - 1){
 						globalIndex++;
+						drawLine(globalIndex);
 					}
-					drawLine(globalIndex);
+					
 				})
 			})
 			
@@ -969,13 +971,35 @@
 			**/ 
 			function drawLine(index) {
 				console.log("Line drawn for packet " + index + " from souce " + packetsJSON[index].Source + " to destination " + packetsJSON[index].Destination);
-				var material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+				
+				//Choose colour of line based on protocol
+				var colour;
+				switch(packetsJSON[index].Protocol){
+					case "UDP":
+						colour = "#ff0066"; //Fuschia
+						break;
+					case "CMPP":
+						colour = "#00ff00"; //Lime
+						break;
+					case "TCP": 
+						colour = "#3399ff"; //Sky Blue
+						break;
+					case "DNS":
+						colour = "#ffff00"; //Yellow
+						break;
+					default:
+						colour = "#ffffff"; //White
+						console.log("PROTOCOL NOT FOUND: " + packetsJSON[index].Protocol);
+				}
+					
+				var material = new THREE.LineBasicMaterial({color: colour, linewidth: 10});
+				material.linewidth = 20;
 				var points = [];
 				points.push(uniqueAddress.get(packetsJSON[index].Source));
 				points.push(uniqueAddress.get(packetsJSON[index].Destination));
 				var geometry = new THREE.BufferGeometry().setFromPoints( points );
-				var line = new THREE.Line( geometry, material );
-				scene.add( line );
+				var line = new THREE.Line(geometry, material);
+				scene.add(line);
 			}
 			
 			animate();			
