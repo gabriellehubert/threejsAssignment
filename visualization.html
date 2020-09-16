@@ -833,7 +833,7 @@
 </div>
 		<table>
 			<tr>
-				<td rowspan="2"><button type="button" id="backwardButton">Backwards</button></td>
+				<td rowspan="2"><button type="button" id="backwardButton" disabled>Backwards</button></td>
 				<td><label>No.</label></td>
 				<td><div id="infoNum"></div></td>
 			</tr>
@@ -984,31 +984,42 @@
 			import {TrackballControls} from 'https://threejsfundamentals.org/threejs/resources/threejs/r119/examples/jsm/controls/TrackballControls.js';
 			var globalIndex = -1; 
 			var controls, renderer, labelRenderer, scene, camera, packetsJSON, uniqueAddress;
+			var geometryList = [], materialList = [], lineList = [];
 			
 			/**
 				Event Listeners for forward/backwards buttons
 			**/
 			document.addEventListener('DOMContentLoaded', function() {	
 				document.getElementById("backwardButton").addEventListener("click", function(){
-					if(globalIndex > 0){
+					if(globalIndex > -1){
 						globalIndex--;
-						drawLine(globalIndex);
+						scene.remove(geometryList.pop());
+						scene.remove(materialList.pop())
+						scene.remove(lineList.pop())
+						updateInformationBar(globalIndex);
+						if(globalIndex == -1){
+							document.getElementById("backwardButton").disabled = true;
 						}
-					
-					//todo: remove last line!
-
+					}
 				})
 				document.getElementById("forwardButton").addEventListener("click", function(){
-					if(globalIndex < packetsJSON.length - 1){
+					if(globalIndex < packetsJSON.length){
 						globalIndex++;
 						drawLine(globalIndex);
 						updateInformationBar(globalIndex);
+						document.getElementById("backwardButton").disabled = false;
+						if(globalIndex == packetsJSON.length){
+							document.getElementById("forwardButton").disabled = true;
+						}
+						
 					}
 					
 				})
 				document.getElementById("skipButton").addEventListener("click", function(){
 					drawAllLines();
-					globalIndex = 0;					
+					globalIndex = packetsJSON.length;
+					document.getElementById("forwardButton").disabled = true;
+					document.getElementById("backwardButton").disabled = false;					
 				})
 			})
 			
@@ -1138,6 +1149,9 @@
 				points.push(uniqueAddress.get(packetsJSON[index].Destination));
 				var geometry = new THREE.BufferGeometry().setFromPoints( points );
 				var line = new THREE.Line(geometry, material);
+				materialList.push(material);
+				geometryList.push(geometry);
+				lineList.push(line);
 				scene.add(line);
 			}
 			
@@ -1145,8 +1159,10 @@
 				Draws all lines from index 0
 			**/
 			function drawAllLines(){
-				for(var i = 0; i < packetsJSON.length; i++){					
-					drawLine(i);
+				for(var i = -1; i < packetsJSON.length - 1; i++){					
+					globalIndex++;
+					drawLine(globalIndex);
+					updateInformationBar(globalIndex);
 				}
 			}
 
@@ -1154,12 +1170,21 @@
 				Updates the information bar with details from the index passed
 			**/
 			function updateInformationBar(index){
-				document.getElementById("infoNum").innerHTML = packetsJSON[index]["No."];
-				document.getElementById("infoSource").innerHTML = packetsJSON[index].Source;
-				document.getElementById("infoDest").innerHTML = packetsJSON[index].Destination;
-				document.getElementById("infoType").innerHTML = packetsJSON[index].Protocol;
-				document.getElementById("infoLength").innerHTML = packetsJSON[index].Length;
-				document.getElementById("infoTime").innerHTML = packetsJSON[index].Time;
+				if(index == -1){
+					document.getElementById("infoNum").innerHTML = "";
+					document.getElementById("infoSource").innerHTML = "";
+					document.getElementById("infoDest").innerHTML = "";
+					document.getElementById("infoType").innerHTML = "";
+					document.getElementById("infoLength").innerHTML = "";
+					document.getElementById("infoTime").innerHTML = "";
+				}else{
+					document.getElementById("infoNum").innerHTML = packetsJSON[index]["No."];
+					document.getElementById("infoSource").innerHTML = packetsJSON[index].Source;
+					document.getElementById("infoDest").innerHTML = packetsJSON[index].Destination;
+					document.getElementById("infoType").innerHTML = packetsJSON[index].Protocol;
+					document.getElementById("infoLength").innerHTML = packetsJSON[index].Length;
+					document.getElementById("infoTime").innerHTML = packetsJSON[index].Time;
+				}
 			}
 			
 			init();
