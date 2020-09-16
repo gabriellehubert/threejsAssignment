@@ -831,14 +831,37 @@
  }
 ]
 </div>
-		<div id="forwardbackbuttons">
-			<button type="button" id="backwardButton">Backwards</button>
-			<button type="button" id="forwardButton">Forwards</button>	
-			<button type="button" id="skipButton">Skip to End</button>
-		</div>
+		<table>
+			<tr>
+				<td rowspan="2"><button type="button" id="backwardButton">Backwards</button></td>
+				<td><label>No.</label></td>
+				<td><div id="infoNum"></div></td>
+			</tr>
+			<tr>
+				<td><label>Source Address</label></td>
+				<td><div id="infoSource"></div></td>
+			</tr>
+				<td rowspan="2"><button type="button" id="forwardButton">Forwards</button></td>
+				<td><label>Destination Address.</label</td>
+				<td><div id="infoDest"></div></td>
+			</tr>
+			<tr>
+				<td><label>Protocol</label></td>
+				<td><div id="infoType"></div></td>
+			</tr>
+			<tr>
+				<td rowspan="2"><button type="button" id="skipButton">Skip to End</button></td>
+				<td><label>Length</label></td>
+				<td><div id="infoLength"></div></td>
+			</tr>
+			<tr>
+				<td><label>Time</label></td>
+				<td><div id="infoTime"></div></td>
+			</tr>
+		</table>
 		<script type="module">
 		    /** Module from https://github.com/mrdoob/three.js/blob/master/examples/jsm/renderers/CSS2DRenderer.js
-			Copy/pasted/modified here to avoid CORS issues & to avoid setting up a web server **/
+			Copy/pasted/modified here to avoid CORS issues & to avoid setting up a web server *********************************************************/
 				var CSS2DObject = function ( element ) {
 				THREE.Object3D.call( this );
 				this.element = element || document.createElement( 'div' );
@@ -979,6 +1002,7 @@
 					if(globalIndex < packetsJSON.length - 1){
 						globalIndex++;
 						drawLine(globalIndex);
+						updateInformationBar(globalIndex);
 					}
 					
 				})
@@ -1055,7 +1079,7 @@
 				labelRenderer = new CSS2DRenderer();
 				labelRenderer.setSize( window.innerWidth, window.innerHeight );
 				labelRenderer.domElement.style.position = 'absolute';
-				labelRenderer.domElement.style.top = "20px";      //Height of top buttons. Otherwise, the renderer "covers" the buttons and makes them unclickable
+				labelRenderer.domElement.style.top = "120px";      //Height of top buttons. Otherwise, the renderer "covers" the buttons and makes them unclickable
 				document.getElementsByTagName("canvas")[0].parentElement.appendChild(labelRenderer.domElement );
 				
 				//Add camera controls
@@ -1120,14 +1144,23 @@
 			/**
 				Draws all lines from index 0
 			**/
-			function drawAllLines()
-			{
-				console.log("here");
-				for(var i = 0; i < packetsJSON.length; i++){
-					
+			function drawAllLines(){
+				for(var i = 0; i < packetsJSON.length; i++){					
 					drawLine(i);
 				}
-			}	
+			}
+
+			/**
+				Updates the information bar with details from the index passed
+			**/
+			function updateInformationBar(index){
+				document.getElementById("infoNum").innerHTML = packetsJSON[index]["No."];
+				document.getElementById("infoSource").innerHTML = packetsJSON[index].Source;
+				document.getElementById("infoDest").innerHTML = packetsJSON[index].Destination;
+				document.getElementById("infoType").innerHTML = packetsJSON[index].Protocol;
+				document.getElementById("infoLength").innerHTML = packetsJSON[index].Length;
+				document.getElementById("infoTime").innerHTML = packetsJSON[index].Time;
+			}
 			
 			init();
 			animate();			
