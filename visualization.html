@@ -836,27 +836,39 @@
 				<td rowspan="2"><button type="button" id="backwardButton" disabled>Backwards</button></td>
 				<td><label>No.</label></td>
 				<td><div id="infoNum"></div></td>
+				<td><strong>Protocol</strong></td>
+				<td><strong>Colour</strong></td>
 			</tr>
 			<tr>
 				<td><label>Source Address</label></td>
 				<td><div id="infoSource"></div></td>
+				<td>UDP</td>
+				<td style="background-color: #ff0066">       </td>
 			</tr>
 				<td rowspan="2"><button type="button" id="forwardButton">Forwards</button></td>
 				<td><label>Destination Address.</label</td>
 				<td><div id="infoDest"></div></td>
+				<td>CMPP</td>
+				<td style="background-color: #00ff00">         </td>
 			</tr>
 			<tr>
 				<td><label>Protocol</label></td>
 				<td><div id="infoType"></div></td>
+				<td>TCP</td>
+				<td style="background-color: #00ffff">        </td>
 			</tr>
 			<tr>
 				<td rowspan="2"><button type="button" id="skipButton">Skip to End</button></td>
 				<td><label>Length</label></td>
 				<td><div id="infoLength"></div></td>
+				<td>DNS</td>
+				<td style="background-color: #ffff00">        </td>
 			</tr>
 			<tr>
 				<td><label>Time</label></td>
 				<td><div id="infoTime"></div></td>
+				<td></td>
+				<td></td>
 			</tr>
 		</table>
 		<script type="module">
@@ -995,6 +1007,7 @@
 						globalIndex--;
 						scene.remove(lineList.pop())
 						updateInformationBar(globalIndex);
+						document.getElementById("forwardButton").disabled = false;
 						if(globalIndex == -1){
 							document.getElementById("backwardButton").disabled = true;
 						}
@@ -1038,7 +1051,7 @@
 				//Adds the 3 aspects vital to displaying anything: scene, camera and renderer
 				scene = new THREE.Scene();
 				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-				scene.background = new THREE.Color("#9ba9b3");
+				scene.background = new THREE.Color("#384747");
 				
 				//Adds spheres representing sources/destinations to the scene
 				var x0 = 0, y0 = 0;
@@ -1117,9 +1130,7 @@
 				This function requires the index of the packetsJSON to be drawn
 				The coordinates of the points are stored in the uniqueAddress map
 			**/ 
-			function drawLine(index) {
-				console.log("Line drawn for packet " + index + " from souce " + packetsJSON[index].Source + " to destination " + packetsJSON[index].Destination);
-				
+			function drawLine(index) {				
 				//Choose colour of line based on protocol
 				var colour;
 				switch(packetsJSON[index].Protocol){
@@ -1138,9 +1149,7 @@
 					default:
 						colour = "#ffffff"; //White
 						console.log("PROTOCOL NOT FOUND: " + packetsJSON[index].Protocol);
-				}
-				
-				
+				}				
 				
 				//Create line
 				var source = uniqueAddress.get(packetsJSON[index].Source);
