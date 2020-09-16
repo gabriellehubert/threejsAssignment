@@ -993,8 +993,6 @@
 				document.getElementById("backwardButton").addEventListener("click", function(){
 					if(globalIndex > -1){
 						globalIndex--;
-						scene.remove(geometryList.pop());
-						scene.remove(materialList.pop())
 						scene.remove(lineList.pop())
 						updateInformationBar(globalIndex);
 						if(globalIndex == -1){
@@ -1132,7 +1130,7 @@
 						colour = "#00ff00"; //Lime
 						break;
 					case "TCP": 
-						colour = "#3399ff"; //Sky Blue
+						colour = "#00ffff"; //Aqua
 						break;
 					case "DNS":
 						colour = "#ffff00"; //Yellow
@@ -1141,18 +1139,19 @@
 						colour = "#ffffff"; //White
 						console.log("PROTOCOL NOT FOUND: " + packetsJSON[index].Protocol);
 				}
-					
-				var material = new THREE.LineBasicMaterial({color: colour, linewidth: 10});
-				material.linewidth = 20;
-				var points = [];
-				points.push(uniqueAddress.get(packetsJSON[index].Source));
-				points.push(uniqueAddress.get(packetsJSON[index].Destination));
-				var geometry = new THREE.BufferGeometry().setFromPoints( points );
-				var line = new THREE.Line(geometry, material);
-				materialList.push(material);
-				geometryList.push(geometry);
-				lineList.push(line);
-				scene.add(line);
+				
+				
+				
+				//Create line
+				var source = uniqueAddress.get(packetsJSON[index].Source);
+				var dest = uniqueAddress.get(packetsJSON[index].Destination);
+				var dir = new THREE.Vector3(dest.x-source.x, dest.y-source.y, dest.z-source.z); //Find direction vector between source and dest	
+				dir.normalize();   																//Normalize the direction vector 			
+				var length = source.distanceTo(dest) - 1;										//Length must account for radius of sphere = 1
+				var hex = colour;
+				var arrowHelper = new THREE.ArrowHelper(dir, source, length, hex);
+				lineList.push(arrowHelper);
+				scene.add(arrowHelper);
 			}
 			
 			/**
